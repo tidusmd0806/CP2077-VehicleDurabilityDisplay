@@ -189,6 +189,9 @@ function VehicleDurabilityDisplay:SetHPDisplay()
 end
 
 function VehicleDurabilityDisplay:Show(on)
+    if VehicleInfo.ink_horizontal_panel == nil then
+        return
+    end
     VehicleInfo.ink_horizontal_panel:SetVisible(on)
 end
 
