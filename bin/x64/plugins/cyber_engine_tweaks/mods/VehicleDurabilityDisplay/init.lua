@@ -9,10 +9,11 @@ local GameUI = require('External/GameUI.lua')
 
 VehicleDurabilityDisplay = {
 	description = "Vehicle Durability Display",
-	version = "1.0.0",
+	version = "1.0.1",
     -- System
     is_ready = false,
     is_hud_initialized = false,
+    is_active_hp_display = false,
     cet_required_version = 32.1, -- 1.32.1
     cet_recommended_version = 32.3, -- 1.32.3
     codeware_required_version = 8.2, -- 1.8.2
@@ -117,9 +118,18 @@ end)
 
 function VehicleDurabilityDisplay:CreateHPDisplay()
 
+    if VehicleInfo.hud_car_controller == nil then
+        print("[VehicleDurabilityDisplay][Error] HUD Car Controller not found.")
+        VehicleDurabilityDisplay.is_active_hp_display = false
+        return
+    end
     local parent = VehicleInfo.hud_car_controller:GetRootCompoundWidget():GetWidget("maindashcontainer")
-    if parent:GetWidget("ap") ~= nil then
-        print("[VehicleDurabilityDisplay][Error] Integrity Panel already exists.")
+    if parent == nil then
+        print("[VehicleDurabilityDisplay][Error] Main Dash Container not found.")
+        VehicleDurabilityDisplay.is_active_hp_display = false
+        return
+    elseif parent:GetWidget("ap") ~= nil then
+        VehicleDurabilityDisplay.is_active_hp_display = true
         return
     end
 
@@ -142,12 +152,8 @@ function VehicleDurabilityDisplay:CreateHPDisplay()
     VehicleInfo.ink_hp_title:SetJustificationType(textJustificationType.Right)
     VehicleInfo.ink_hp_title:SetHorizontalAlignment(textHorizontalAlignment.Right)
     VehicleInfo.ink_hp_title:SetVerticalAlignment(textVerticalAlignment.Center)
-    local color = HDRColor.new()
-    color.Red = 1.176
-    color.Green = 0.381
-    color.Blue = 0.348
-    color.Alpha = 1.0
-    VehicleInfo.ink_hp_title:SetTintColor(color)
+    VehicleInfo.ink_hp_title:SetStyle(ResRef.FromName("base\\gameplay\\gui\\common\\main_colors.inkstyle"))
+    VehicleInfo.ink_hp_title:BindProperty("tintColor", "MainColors.Red")
     VehicleInfo.ink_hp_title:Reparent(VehicleInfo.ink_horizontal_panel)
 
     VehicleInfo.ink_hp_text = inkText.new()
@@ -159,17 +165,19 @@ function VehicleDurabilityDisplay:CreateHPDisplay()
     VehicleInfo.ink_hp_text:SetFitToContent(true)
     VehicleInfo.ink_hp_text:SetJustificationType(textJustificationType.Left)
     VehicleInfo.ink_hp_text:SetHorizontalAlignment(textHorizontalAlignment.Left)
-    local color = HDRColor.new()
-    color.Red = 0.369
-    color.Green = 0.965
-    color.Blue = 1.000
-    color.Alpha = 1.0
-    VehicleInfo.ink_hp_text:SetTintColor(color)
+    VehicleInfo.ink_hp_text:SetStyle(ResRef.FromName("base\\gameplay\\gui\\common\\main_colors.inkstyle"))
+    VehicleInfo.ink_hp_text:BindProperty("tintColor", "MainColors.Blue")
     VehicleInfo.ink_hp_text:Reparent(VehicleInfo.ink_horizontal_panel)
+
+    VehicleDurabilityDisplay.is_active_hp_display = true
 
 end
 
 function VehicleDurabilityDisplay:SetHPDisplay()
+
+    if not VehicleDurabilityDisplay.is_active_hp_display then
+        return
+    end
 
     local hp_value = VehicleInfo.vehicle_hp
     hp_value = math.floor(hp_value)
@@ -189,10 +197,12 @@ function VehicleDurabilityDisplay:SetHPDisplay()
 end
 
 function VehicleDurabilityDisplay:Show(on)
-    if VehicleInfo.ink_horizontal_panel == nil then
+
+    if not VehicleDurabilityDisplay.is_active_hp_display then
         return
     end
     VehicleInfo.ink_horizontal_panel:SetVisible(on)
+
 end
 
 function VehicleDurabilityDisplay:CheckDependencies()
