@@ -7,9 +7,15 @@
 local Cron = require('External/Cron.lua')
 local GameUI = require('External/GameUI.lua')
 
+Type = {
+    Bottom = 1,
+    Top = 2,
+}
+
 VehicleDurabilityDisplay = {
 	description = "Vehicle Durability Display",
-	version = "1.0.1",
+	version = "1.0.2",
+    type = Type.Bottom,
     -- System
     is_ready = false,
     is_hud_initialized = false,
@@ -70,6 +76,8 @@ registerForEvent('onInit', function()
         VehicleInfo.entity_id = nil
         VehicleDurabilityDisplay.is_hud_initialized = false
         VehicleDurabilityDisplay:Show(false)
+        VehicleDurabilityDisplay:Fluff(true)
+
     end)
 
     Observe("hudCarController", "OnInitialize", function(this)
@@ -88,16 +96,19 @@ registerForEvent('onInit', function()
         for _, vehicle in ipairs(ExceptionVehicle) do
             if Game.FindEntityByID(VehicleInfo.entity_id):GetRecordID() == TweakDBID.new(vehicle) then
                 VehicleDurabilityDisplay:Show(false)
+                VehicleDurabilityDisplay:Fluff(true)
                 return
             end
         end
         VehicleDurabilityDisplay:SetHPDisplay()
         VehicleDurabilityDisplay:Show(true)
+        VehicleDurabilityDisplay:Fluff(false)
     end)
 
     Observe("hudCarController", "OnUnmountingEvent", function(this, evt)
         VehicleInfo.hud_car_controller = this
         VehicleDurabilityDisplay:Show(false)
+        VehicleDurabilityDisplay:Fluff(true)
     end)
 
     Observe("VehicleComponent", "EvaluateDamageLevel", function(this, destruction)
@@ -136,8 +147,12 @@ function VehicleDurabilityDisplay:CreateHPDisplay()
     VehicleInfo.ink_horizontal_panel = inkHorizontalPanel.new()
     VehicleInfo.ink_horizontal_panel:SetName(CName.new("ap"))
     VehicleInfo.ink_horizontal_panel:SetAnchor(inkEAnchor.CenterRight)
-    VehicleInfo.ink_horizontal_panel:SetMargin(0, 0, -35, 13)
     VehicleInfo.ink_horizontal_panel:SetFitToContent(false)
+    if VehicleDurabilityDisplay.type == Type.Bottom then
+        VehicleInfo.ink_horizontal_panel:SetMargin(0, 0, -41, 13)
+    elseif VehicleDurabilityDisplay.type == Type.Top then
+        VehicleInfo.ink_horizontal_panel:SetMargin(0, 0, -36, 85)
+    end
     VehicleInfo.ink_horizontal_panel:Reparent(parent)
 
     VehicleInfo.ink_hp_title = inkText.new()
@@ -147,7 +162,7 @@ function VehicleDurabilityDisplay:CreateHPDisplay()
     VehicleInfo.ink_hp_title:SetFontStyle("Medium")
     VehicleInfo.ink_hp_title:SetFontSize(15)
     VehicleInfo.ink_hp_title:SetOpacity(0.4)
-    VehicleInfo.ink_hp_title:SetMargin(0, 15, 0, 0)
+    VehicleInfo.ink_hp_title:SetMargin(0, 13, 0, 0)
     VehicleInfo.ink_hp_title:SetFitToContent(true)
     VehicleInfo.ink_hp_title:SetJustificationType(textJustificationType.Right)
     VehicleInfo.ink_hp_title:SetHorizontalAlignment(textHorizontalAlignment.Right)
@@ -161,15 +176,23 @@ function VehicleDurabilityDisplay:CreateHPDisplay()
     VehicleInfo.ink_hp_text:SetText("100")
     VehicleInfo.ink_hp_text:SetFontFamily("base\\gameplay\\gui\\fonts\\digital_readout\\digitalreadout.inkfontfamily")
     VehicleInfo.ink_hp_text:SetFontStyle("Regular")
-    VehicleInfo.ink_hp_text:SetFontSize(25)
+    VehicleInfo.ink_hp_text:SetMargin(0, 13, 0, 0)
     VehicleInfo.ink_hp_text:SetFitToContent(true)
     VehicleInfo.ink_hp_text:SetJustificationType(textJustificationType.Left)
     VehicleInfo.ink_hp_text:SetHorizontalAlignment(textHorizontalAlignment.Left)
+    VehicleInfo.ink_hp_text:SetVerticalAlignment(textVerticalAlignment.Center)
     VehicleInfo.ink_hp_text:SetStyle(ResRef.FromName("base\\gameplay\\gui\\common\\main_colors.inkstyle"))
     VehicleInfo.ink_hp_text:BindProperty("tintColor", "MainColors.Blue")
+    if VehicleDurabilityDisplay.type == Type.Bottom then
+        VehicleInfo.ink_hp_text:SetFontSize(20)
+    elseif VehicleDurabilityDisplay.type == Type.Top then
+        VehicleInfo.ink_hp_text:SetFontSize(25)
+    end
     VehicleInfo.ink_hp_text:Reparent(VehicleInfo.ink_horizontal_panel)
 
     VehicleDurabilityDisplay.is_active_hp_display = true
+
+    VehicleDurabilityDisplay:Fluff(false)
 
 end
 
@@ -202,6 +225,20 @@ function VehicleDurabilityDisplay:Show(on)
         return
     end
     VehicleInfo.ink_horizontal_panel:SetVisible(on)
+
+end
+
+function VehicleDurabilityDisplay:Fluff(on)
+
+    if not VehicleDurabilityDisplay.is_active_hp_display then
+        return
+    end
+    if VehicleDurabilityDisplay.type == Type.Top then
+        local fluff_text = VehicleInfo.hud_car_controller:GetRootCompoundWidget():GetWidget("maindashcontainer"):GetWidget("flufftext")
+        if fluff_text ~= nil then
+            fluff_text:SetVisible(on)
+        end
+    end
 
 end
 
