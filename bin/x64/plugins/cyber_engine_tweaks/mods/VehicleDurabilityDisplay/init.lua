@@ -14,7 +14,7 @@ Type = {
 
 VehicleDurabilityDisplay = {
 	description = "Vehicle Durability Display",
-	version = "1.0.2",
+	version = "1.1.0",
     type = Type.Bottom,
     -- System
     is_ready = false,
@@ -35,13 +35,11 @@ VehicleInfo = {
     ink_hp_text = nil,
 }
 
+-- Table for caching HP values
+HPCache = {}
+
 ExceptionVehicle = {
-    "Vehicle.av_rayfield_excalibur_dav",
-    "Vehicle.av_militech_manticore_dav",
-    "Vehicle.av_zetatech_atlus_dav",
-    "Vehicle.av_zetatech_surveyor_dav",
-    "Vehicle.q000_nomad_border_patrol_heli_dav",
-    "Vehicle.q000_nomad_border_patrol_heli_mayhem_dav",
+    "None"
 }
 
 registerForEvent('onInit', function()
@@ -77,22 +75,45 @@ registerForEvent('onInit', function()
         VehicleDurabilityDisplay.is_hud_initialized = false
         VehicleDurabilityDisplay:Show(false)
         VehicleDurabilityDisplay:Fluff(true)
-
+        -- Clear HP cache
+        HPCache = {}
     end)
 
     Observe("hudCarController", "OnInitialize", function(this)
         VehicleInfo.hud_car_controller = this
-        VehicleInfo.vehicle_hp = 100
         VehicleDurabilityDisplay:CreateHPDisplay()
+        local mounted_vehicle = Game.GetPlayer():GetMountedVehicle()
+        if mounted_vehicle ~= nil then
+            VehicleInfo.entity_id = mounted_vehicle:GetEntityID()
+            -- Get the latest HP value from cache
+            local hash_key = tostring(VehicleInfo.entity_id.hash)  -- Convert to string
+            local cached_hp = HPCache[hash_key]
+            if cached_hp ~= nil then
+                VehicleInfo.vehicle_hp = cached_hp
+                VehicleDurabilityDisplay:SetHPDisplay()
+            else
+                VehicleInfo.vehicle_hp = 100  -- Default value
+            end
+        else
+            VehicleInfo.entity_id = nil
+        end
         VehicleDurabilityDisplay.is_hud_initialized = true
     end)
 
     Observe("hudCarController", "OnMountingEvent", function(this, evt)
         VehicleInfo.hud_car_controller = this
-        if VehicleInfo.entity_id ~= nil and VehicleInfo.entity_id.hash ~= evt.request.lowLevelMountingInfo.parentId.hash then
-            VehicleInfo.vehicle_hp = 100
-        end
+
         VehicleInfo.entity_id = evt.request.lowLevelMountingInfo.parentId
+
+        -- Get the latest HP value from cache (using string key)
+        local hash_key = tostring(VehicleInfo.entity_id.hash)
+        local cached_hp = HPCache[hash_key]
+        if cached_hp ~= nil then
+            VehicleInfo.vehicle_hp = cached_hp
+        else
+            VehicleInfo.vehicle_hp = 100  -- Default value
+        end
+
         for _, vehicle in ipairs(ExceptionVehicle) do
             if Game.FindEntityByID(VehicleInfo.entity_id):GetRecordID() == TweakDBID.new(vehicle) then
                 VehicleDurabilityDisplay:Show(false)
@@ -111,11 +132,16 @@ registerForEvent('onInit', function()
         VehicleDurabilityDisplay:Fluff(true)
     end)
 
-    Observe("VehicleComponent", "EvaluateDamageLevel", function(this, destruction)
-        if VehicleInfo.entity_id == nil then
-            return
-        end
-        if this:GetEntity():GetEntityID().hash == VehicleInfo.entity_id.hash then
+    Observe("VehicleComponent", "ReactToHPChange", function(this, destruction)
+        local entity_id = this:GetEntity():GetEntityID()
+        local hash = entity_id.hash
+
+        -- Convert hash value to string and use as key
+        local hash_key = tostring(hash)
+        HPCache[hash_key] = destruction
+
+        -- Only update display if the currently mounted vehicle's HP is updated
+        if VehicleInfo.entity_id ~= nil and tostring(VehicleInfo.entity_id.hash) == hash_key then
             VehicleInfo.vehicle_hp = destruction
             VehicleDurabilityDisplay:SetHPDisplay()
         end
